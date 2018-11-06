@@ -1,0 +1,11 @@
+---
+title: "hw06-Ninadh"
+author: "Ninadh"
+date: "November 6, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+```
+
