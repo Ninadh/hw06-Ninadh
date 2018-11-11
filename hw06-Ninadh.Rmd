@@ -17,6 +17,8 @@ library(stringr)
 library(knitr)
 library(repurrrsive)
 library(testthat)
+library(dplyr)
+library(broom)
 ```
 
 Task 2: Write function
@@ -35,6 +37,186 @@ Let me filter my country, Bangladesh
 ```{r}
 gapminder %>%
   filter(country == "Bangladesh") %>%
-  kta
+  knitr::kable()
+```
+
+To use the linear regression function for the dataframe, lets use a variable for the dataset and plot it.
+
+```{r}
+gap_ban <- (gapminder %>%
+  filter(country == "Bangladesh"))
+```
+
+
+```{r}
+ggplot(gap_ban, aes(x=year, y= lifeExp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) 
+```
+
+I had no idea that it wound be such a good graph. the linear regression is a good formula as most of the dots fall on the line. 
+
+to use linear regression for the above data:
+
+```{r}
+lm(formula = lifeExp ~ year, data = gap_ban)
+coef(lm(formula = lifeExp ~ year, data = gap_ban))
+```
+
+Let's now try the quadratic function on the same data
+
+```{r}
+gap_ban_quad <- lm(formula = lifeExp ~ I(year) + I(year^2), data = gap_ban)
+coef(gap_ban_quad)
+```
+
+I always like graphical presentaion of my data.
+
+```{r}
+ggplot(gap_ban, aes(x=year, y=lifeExp)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2), se = FALSE)
+```
+
+Well, the quadraic formula is a good fit as well. 
+
+
+
+Task 06: Work with a nested data frame
+
+# to make my life easier.
+
+Create a nested data frame and map a function over the list column holding the nested data. Use list extraction or other functions to pull interesting information out of these results and work your way back to a simple data frame you can visualize and explore.
+
+# nesting the dataframe by country and continent (following Jenny's footsteps)
+
+```{r}
+gapminder %>%
+  group_by(country, continent) %>%
+  nest()
+```
+
+# assigning the dataframe
+
+```{r}
+gap_nest <- (gapminder %>%
+  group_by(country, continent) %>%
+  nest())
+```
+
+# inspecting
+
+```{r}
+gap_nest %>%
+  View()
+```
+
+# data for Bangladesh by [9]
+
+```{r}
+gap_nest[[9, "data"]]
+```
+
+
+
+# fitting the data of life-expectancy by year in quadratic model
+
+```{r}
+quad_model <- function(data) {
+  lm(formula = lifeExp ~ I(year) + I(year^2), data=gap_nest[[9, "data"]])
+}
+```
+
+
+# does the function work?
+
+```{r}
+quad_model(gap_nest$lifeExp)
+```
+
+# yeahhhh it works.
+
+Trying the robust model now
+
+```{r}
+robust_model <- function(data) {
+  MASS::rlm(formula = lifeExp ~ I(year) + I(year^2), data=gap_nest[[9, "data"]])
+}
+```
+
+# does it work?
+
+```{r}
+robust_model(gap_nest$lifeExp)
+```
+
+# to double check that same result is returned with another formula
+
+```{r}
+ban_le_yr <- function(df) {
+  lm(lifeExp ~ I(year) + I(year^2), data = df)
+}
+ban_le_yr(gap_nested[[9, "data"]])
+```
+
+the values are slightly different!
+
+# lets check whether it "fits" for Afganistan, Albania and Algeria
+
+```{r}
+map(gap_nest$data[1:3], ban_le_yr)
+```
+
+```{r}
+fits <- map(gap_nest$data[1:3], ban_le_yr)
+fit
+```
+
+# using broom to tidy up the data
+
+```{r}
+(gap_nest2 <- gap_nest %>% 
+   mutate(fit = map(data, ban_le_yr)))
+```
+
+# data of Bangladesh in one glance
+
+```{r}
+tidy(gap_nest2$fit[[9]])
+```
+
+```{r}
+gap_nest2 %>% 
+  mutate(tidy = map(fit, tidy))
+```
+
+
+
+```{r}
+gap_nest2 %>% 
+  mutate(tidy = map(fit, tidy)) %>%
+  select(continent, country, tidy)
+```
+
+```{r}
+gap_nest2 %>% 
+  mutate(tidy = map(fit, tidy)) %>%
+  select(continent, country, tidy) %>%
+  unnest(tidy)
+```
+
+```{r}
+gap_coef <- gap_nest2 %>% 
+  mutate(tidy = map(fit, tidy)) %>%
+  select(continent, country, tidy) %>%
+  unnest(tidy)
+```
+
+# A tabular presentation of the data
+ 
+```{r}
+gap_coef %>%
+  filter(continent == "Asia") %>%
+knitr::kable()
 ```
 
